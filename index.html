@@ -8,11 +8,7 @@
 
 <style>
 html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#f0f2f5; }
-#header {
-  position:absolute; top:20px; left:80px; background:white; padding:8px 14px;
-  border-radius:10px; display:flex; align-items:center; z-index:1000;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
-}
+#header { position:absolute; top:20px; left:80px; background:white; padding:8px 14px; border-radius:10px; display:flex; align-items:center; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.2);}
 #header img { height:50px; margin-right:12px; }
 #header span { font-weight:bold; font-size:14px; }
 
@@ -22,54 +18,20 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#f0
 
 h2 { margin-top:0; text-align:center; }
 label { font-weight:bold; margin-top:12px; display:block; }
-input, select, textarea {
-  width:100%; padding:8px; margin-top:4px;
-  border-radius:6px; border:1px solid #ccc;
-}
+input, select, textarea { width:100%; padding:8px; margin-top:4px; border-radius:6px; border:1px solid #ccc; }
 textarea { resize:vertical; min-height:80px; }
 
-button {
-  margin-top:12px; padding:10px; border:none;
-  border-radius:6px; font-size:15px; cursor:pointer;
-}
+button { margin-top:12px; padding:10px; border:none; border-radius:6px; font-size:15px; cursor:pointer; }
 #createClientBtn { background:#27ae60; color:white; }
 #saveBtn { background:#2c3e50; color:white; }
 #deleteBtn { background:#c0392b; color:white; }
 
-.checkbox-group {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-top:4px;
-}
+.checkbox-group { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
 
-#toast {
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#2ecc71;
-  color:white;
-  padding:12px 20px;
-  border-radius:8px;
-  font-weight:bold;
-  opacity:0;
-  transition:opacity .3s;
-  z-index:3000;
-}
+#toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#2ecc71; color:white; padding:12px 20px; border-radius:8px; font-weight:bold; opacity:0; transition:opacity .3s; z-index:3000; }
 
-/* ===== LOGIN OVERLAY ===== */
-#loginOverlay {
-  position:absolute;
-  top:0; left:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.6); display:flex;
-  justify-content:center; align-items:center; z-index:5000;
-}
-#loginBox {
-  background:white; padding:30px; border-radius:12px;
-  box-shadow:0 4px 16px rgba(0,0,0,0.3);
-  width:300px; display:flex; flex-direction:column; gap:12px;
-}
+#loginOverlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:5000; }
+#loginBox { background:white; padding:30px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.3); width:300px; display:flex; flex-direction:column; gap:12px; }
 #loginBox input { padding:8px; border-radius:6px; border:1px solid #ccc; width:100%; }
 #loginBox button { padding:10px; border:none; border-radius:6px; background:#2c3e50; color:white; cursor:pointer; font-size:15px; }
 </style>
@@ -77,7 +39,6 @@ button {
 
 <body>
 
-<!-- ===== LOGIN ADMIN ===== -->
 <div id="loginOverlay">
   <div id="loginBox">
     <h3>Connexion Administrateur</h3>
@@ -149,6 +110,17 @@ button {
 
     <button id="saveBtn">💾 Sauvegarder le point</button>
     <button id="deleteBtn">🗑️ Supprimer le point</button>
+
+    <hr>
+
+    <h2>Surveillance active</h2>
+    <label>Type</label>
+    <select id="surveillanceType">
+      <option value="">-- Sélectionner --</option>
+      <option value="grele">Grêle</option>
+      <option value="vent">Vent</option>
+    </select>
+
   </div>
 </div>
 
@@ -156,9 +128,10 @@ button {
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, getDoc, getDocFromServer } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
 const app = initializeApp({
   apiKey:"AIzaSyDqb1u1HSfjmE-lE4ml9NrwGbAKCjf1D5o",
@@ -177,76 +150,18 @@ function toast(msg,color="#2ecc71"){
   t._t=setTimeout(()=>t.style.opacity=0,2000);
 }
 
-/* ===== LOGIN ADMIN ===== */
-const loginOverlay=document.getElementById("loginOverlay");
-const loginBtn=document.getElementById("loginBtn");
 loginBtn.onclick=async()=>{
-  const email=document.getElementById("loginEmail").value.trim();
-  const password=document.getElementById("loginPassword").value.trim();
+  const email=loginEmail.value.trim();
+  const password=loginPassword.value.trim();
   if(!email || !password) return alert("Remplissez email et mot de passe");
-
-  try{
-    const cred=await signInWithEmailAndPassword(auth,email,password);
-    const uid=cred.user.uid;
-    const adminDoc=await getDoc(doc(db,"admins",uid));
-    if(!adminDoc.exists() || adminDoc.data().role!=="admin"){
-      auth.signOut();
-      alert("Accès refusé");
-      return;
-    }
-    loginOverlay.style.display="none"; // ✅ cache login
-    loadDashboard(); // 🔹 lance la carte et fonctions
-  }catch(e){
-    alert("Erreur login: "+e.message);
-  }
+  const cred=await signInWithEmailAndPassword(auth,email,password);
+  loginOverlay.style.display="none";
+  loadDashboard();
 };
 
-/* ===== TABLEAU DE BORD ===== */
 function loadDashboard(){
   const map=L.map("map").setView([44.35,2.57],9);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-// 🔹 Style pour les contours des départements
-const deptStyle = {
-  color: "#2c3e50",
-  weight: 1,
-  fillColor: "#2c3e50",
-  fillOpacity: 0.05
-};
-
-// 🔹 URL du GeoJSON simplifié des départements
-const deptGeojsonUrl =
-  "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson";
-
-// 🔹 Charger le GeoJSON et filtrer les départements ciblés
-fetch(deptGeojsonUrl)
-  .then(response => response.json())
-  .then(data => {
-    // Codes INSEE des départements ciblés : Lot(46), Corrèze(19), Cantal(15), Lozère(48), Aveyron(12), Tarn(81), Tarn-et-Garonne(82)
-    const codesVoulu = ["46", "19", "15", "48", "12", "81", "82"];
-
-    const filtered = {
-      type: "FeatureCollection",
-      features: data.features.filter(
-        f => f.properties.code && codesVoulu.includes(f.properties.code)
-      )
-    };
-
-    // Ajouter les contours filtrés à la carte
-    L.geoJSON(filtered, {
-      style: deptStyle
-    }).addTo(map);
-
-  })
-  .catch(err =>
-    console.error("Erreur chargement GeoJSON départements:", err)
-  );
-
-
-  /* 🔒 FIX MAJEUR LEAFLET */
-  L.DomEvent.disableClickPropagation(document.getElementById("panel"));
-  L.DomEvent.disableScrollPropagation(document.getElementById("panel"));
-  setTimeout(()=>map.invalidateSize(),300);
 
   const icons={};
   [1,2,3,4,5,6].forEach(i=>{
@@ -261,16 +176,11 @@ fetch(deptGeojsonUrl)
   let selected=null;
   let phenomena={};
 
-  function syncCheckboxes(){
-    document.querySelectorAll(".checkbox-group input").forEach(cb=>{
-      cb.checked=phenomena[cb.dataset.key]||false;
-    });
-  }
-
-  document.querySelectorAll(".checkbox-group input").forEach(cb=>{
-    cb.addEventListener("change",()=>{
-      if(!selected) return;
-      phenomena[cb.dataset.key]=cb.checked;
+  // ⚡ GESTION DES CHECKBOX
+  document.querySelectorAll('.checkbox-group input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = cb.dataset.key;
+      phenomena[key] = cb.checked;
     });
   });
 
@@ -283,7 +193,12 @@ fetch(deptGeojsonUrl)
     alertLevel.value=data.alertLevel;
     description.value=data.description;
     phenomena={...data.phenomena};
-    syncCheckboxes();
+
+    // ⚡ Réinitialiser les checkbox
+    document.querySelectorAll('.checkbox-group input[type=checkbox]').forEach(cb=>{
+      const key = cb.dataset.key;
+      cb.checked = !!phenomena[key];
+    });
   }
 
   function addMarker(id,d){
@@ -306,44 +221,36 @@ fetch(deptGeojsonUrl)
     }
   }));
 
-  createClientBtn.onclick=async()=>{
+  createClientBtn.onclick = async () => {
     if(!clientUid.value) return alert("UID requis");
 
     await setDoc(doc(db,"users",clientUid.value),{
-      email:clientEmail.value,
-      role:"client",
-      active:true,
-      contactName:clientContact.value,
-      companyName:clientCompany.value,
-      createdAt:serverTimestamp()
+        email:clientEmail.value, role:"client", active:true,
+        contactName:clientContact.value, companyName:clientCompany.value,
+        createdAt:serverTimestamp()
     });
 
-    const c=map.getCenter();
-    await addDoc(pointsRef,{
-      userId:clientUid.value,
-      name:"Point initial",
-      location:"",
-      phenomenonType:"orages",
-      alertLevel:1,
-      description:"",
-      phenomena:{},
-      lat:c.lat,
-      lng:c.lng,
-      updatedAt:serverTimestamp()
-    });
+    toast("✅ Client créé, cliquez sur la carte pour placer le point initial","#27ae60");
 
-    toast("➕ Client et point créés","#27ae60");
+    function handleMapClick(e){
+        addDoc(pointsRef,{
+            userId:clientUid.value, name:"Point initial", location:"",
+            phenomenonType:"orages", alertLevel:1, description:"",
+            phenomena:{}, lat:e.latlng.lat, lng:e.latlng.lng, updatedAt:serverTimestamp()
+        }).then(()=>{
+            toast("➕ Point initial ajouté","#27ae60");
+        }).finally(()=>{ map.off("click", handleMapClick); });
+    }
+
+    map.on("click", handleMapClick);
   };
 
   saveBtn.onclick=async()=>{
     if(!selected) return alert("Sélectionnez un point");
     await updateDoc(doc(db,"points",selected),{
-      name:pointName.value,
-      location:pointLocation.value,
-      phenomenonType:phenomenonType.value,
-      alertLevel:Number(alertLevel.value),
-      description:description.value,
-      phenomena:{...phenomena},
+      name:pointName.value, location:pointLocation.value,
+      phenomenonType:phenomenonType.value, alertLevel:Number(alertLevel.value),
+      description:description.value, phenomena:{...phenomena},
       updatedAt:serverTimestamp()
     });
     toast("💾 Point sauvegardé");
@@ -355,6 +262,55 @@ fetch(deptGeojsonUrl)
     selected=null;
     toast("🗑️ Point supprimé","#e74c3c");
   };
+
+  const surveillanceRef = collection(db,"surveillancePoints");
+  const surveillanceMarkers = {};
+
+  const surveillanceIcons = {
+    grele: L.icon({
+      iconUrl:"https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png",
+      iconSize:[30,30], iconAnchor:[15,30]
+    }),
+    vent: L.icon({
+      iconUrl:"https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png",
+      iconSize:[30,30], iconAnchor:[15,30]
+    })
+  };
+
+  map.on("click", async (e)=>{
+    const type = document.getElementById("surveillanceType").value;
+    if(!type) return;
+    await addDoc(surveillanceRef,{
+      type:type,
+      lat:e.latlng.lat,
+      lng:e.latlng.lng,
+      createdAt:serverTimestamp()
+    });
+    toast("Point de surveillance ajouté");
+  });
+
+  onSnapshot(surveillanceRef,(snap)=>{
+    snap.docChanges().forEach(change=>{
+      const id=change.doc.id;
+      const d=change.doc.data();
+      if(change.type==="added"){
+        const marker=L.marker([d.lat,d.lng],{icon:surveillanceIcons[d.type]}).addTo(map);
+        marker.on("click",async()=>{
+          if(confirm("Supprimer ce point de surveillance ?")){
+            await deleteDoc(doc(db,"surveillancePoints",id));
+          }
+        });
+        surveillanceMarkers[id]=marker;
+      }
+      if(change.type==="removed"){
+        if(surveillanceMarkers[id]){
+          map.removeLayer(surveillanceMarkers[id]);
+          delete surveillanceMarkers[id];
+        }
+      }
+    });
+  });
+
 }
 </script>
 </body>
