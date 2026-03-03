@@ -78,6 +78,19 @@ button { margin-top:12px; padding:10px; border:none; border-radius:6px; font-siz
     <label>Lieu</label>
     <input id="pointLocation">
 
+<hr>
+<h2>Évolution horaire & prochains jours</h2>
+
+<label>Jour à modifier</label>
+<input type="date" id="forecastDate">
+
+<div id="hourlyTimeline" style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;"></div>
+
+<label>Évolution prochains jours</label>
+<textarea id="nextDaysEvolution" placeholder="Texte libre..."></textarea>
+
+<button id="saveTimelineBtn">💾 Sauvegarder évolution</button>
+
     <label>Type de phénomène</label>
     <select id="phenomenonType">
       <option value="orages">Orages</option>
@@ -176,6 +189,95 @@ function loadDashboard(){
   let selected=null;
   let phenomena={};
 
+// mémoire temporaire des frises par point et par date
+  const timelineCache = {};
+
+  // Couleurs pour chaque niveau de risque
+const colors = {
+    0: "#27ae60", // vert = pas de risque
+    1: "#f1c40f", // jaune = faible
+    2: "#e67e22", // orange = modéré
+    3: "#e74c3c", // rouge = fort
+    4: "#8e44ad"  // violet = extrême
+};
+
+// Fonction pour générer la frise horaire
+function createHourlyTimeline(existingData = {}) {
+    const timeline = document.getElementById("hourlyTimeline");
+    timeline.innerHTML = ""; // vide la frise avant de la remplir
+    for (let h = 0; h < 24; h += 2) { // toutes les 2h
+        const square = document.createElement("div");
+        square.style.width = "30px";
+        square.style.height = "30px";
+        square.style.border = "1px solid #ccc";
+        square.style.cursor = "pointer";
+        square.style.display = "flex";
+        square.style.alignItems = "center";
+        square.style.justifyContent = "center";
+        square.style.fontSize = "12px";
+        square.textContent = h;
+
+        // Valeur existante ou par défaut 0
+        const val = existingData[h] || 0;
+        square.dataset.hour = h;
+        square.dataset.value = val;
+        square.style.background = colors[val];
+
+        // Au clic, on fait tourner la couleur
+        square.addEventListener("click", () => {
+            let nextVal = (parseInt(square.dataset.value) + 1) % Object.keys(colors).length;
+            square.dataset.value = nextVal;
+            square.style.background = colors[nextVal];
+        });
+
+        timeline.appendChild(square);
+    }
+}
+
+    const saveTimelineBtn = document.getElementById("saveTimelineBtn");
+saveTimelineBtn.onclick = async () => {
+    if(!selected) return alert("Sélectionnez un point client");
+    const date = document.getElementById("forecastDate").value;
+    if(!date) return alert("Sélectionnez un jour");
+
+    // Récupérer les valeurs des carrés
+    const squares = document.querySelectorAll("#hourlyTimeline div");
+    const hoursData = {};
+    squares.forEach(sq => {
+        hoursData[sq.dataset.hour] = parseInt(sq.dataset.value);
+    });
+
+    const text = document.getElementById("nextDaysEvolution").value;
+
+    // Sauvegarde Firebase
+    await setDoc(doc(db, "hourlyForecasts", selected + "_" + date), {
+        date,
+        hours: hoursData,
+        nextDaysText: text,
+        updatedAt: serverTimestamp()
+    });
+
+    toast("💾 Évolution horaire sauvegardée");
+};
+
+  const forecastDate = document.getElementById("forecastDate");
+const nextDaysEvolution = document.getElementById("nextDaysEvolution");
+
+forecastDate.onchange = async () => {
+    if(!selected) return;
+    const date = forecastDate.value;
+    const docRef = doc(db, "hourlyForecasts", selected + "_" + date);
+    const snap = await getDoc(docRef);
+    if(snap.exists()){
+        const data = snap.data();
+        createHourlyTimeline(data.hours);
+        nextDaysEvolution.value = data.nextDaysText || "";
+    } else {
+        createHourlyTimeline(); // frise vide
+        nextDaysEvolution.value = "";
+    }
+};
+
   // ⚡ GESTION DES CHECKBOX
   document.querySelectorAll('.checkbox-group input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
@@ -184,22 +286,69 @@ function loadDashboard(){
     });
   });
 
-  function loadPointData(id,data){
-    selected=id;
-    pointUserId.value=data.userId;
-    pointName.value=data.name;
-    pointLocation.value=data.location;
-    phenomenonType.value=data.phenomenonType;
-    alertLevel.value=data.alertLevel;
-    description.value=data.description;
-    phenomena={...data.phenomena};
+  async function loadPointData(id, data){
+
+// 🔵 Si on était déjà sur un point, on sauvegarde sa frise en mémoire
+if(selected){
+    const date = forecastDate.value;
+    if(date){
+        const squares = document.querySelectorAll("#hourlyTimeline div");
+        const hoursData = {};
+
+        squares.forEach(sq => {
+            hoursData[sq.dataset.hour] = parseInt(sq.dataset.value);
+        });
+
+        timelineCache[selected + "_" + date] = {
+            hours: hoursData,
+            nextDaysText: nextDaysEvolution.value
+        };
+    }
+}
+    selected = id;
+    pointUserId.value = data.userId;
+    pointName.value = data.name;
+    pointLocation.value = data.location;
+    phenomenonType.value = data.phenomenonType;
+    alertLevel.value = data.alertLevel;
+    description.value = data.description;
+    phenomena = {...data.phenomena};
 
     // ⚡ Réinitialiser les checkbox
     document.querySelectorAll('.checkbox-group input[type=checkbox]').forEach(cb=>{
-      const key = cb.dataset.key;
-      cb.checked = !!phenomena[key];
+        const key = cb.dataset.key;
+        cb.checked = !!phenomena[key];
     });
-  }
+
+    // 🔹 Charger la frise du point pour la date sélectionnée
+    const dateInput = document.getElementById("forecastDate");
+    if(dateInput.value){ // si une date est déjà sélectionnée
+        const docRef = doc(db, "hourlyForecasts", id + "_" + dateInput.value);
+        const snap = await getDoc(docRef);
+        const key = id + "_" + dateInput.value;
+
+// 🔵 1️⃣ Si une frise existe en mémoire → on l'utilise
+if(timelineCache[key]){
+    createHourlyTimeline(timelineCache[key].hours);
+    document.getElementById("nextDaysEvolution").value = timelineCache[key].nextDaysText;
+}
+
+// 🔵 2️⃣ Sinon on regarde dans Firebase
+else if(snap.exists()){
+    createHourlyTimeline(snap.data().hours);
+    document.getElementById("nextDaysEvolution").value = snap.data().nextDaysText || "";
+}
+
+// 🔵 3️⃣ Sinon frise vide
+else {
+    createHourlyTimeline();
+    document.getElementById("nextDaysEvolution").value = "";
+}
+    } else {
+        createHourlyTimeline(); // frise vide par défaut
+        document.getElementById("nextDaysEvolution").value = "";
+    }
+}
 
   function addMarker(id,d){
     if(markers[id]) markers[id].setIcon(icons[d.alertLevel]);
